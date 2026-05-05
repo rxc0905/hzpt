@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}我的响应 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:16px;">&#128172; 我的响应</h2>
+
+{% if responses %}
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>需求标题</th>
+                    <th>发布者</th>
+                    <th>响应内容</th>
+                    <th>响应状态</th>
+                    <th>响应时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for resp in responses %}
+                <tr>
+                    <td><a href="{% url 'demands:detail' resp.demand.id %}">{{ resp.demand.title }}</a></td>
+                    <td><a href="{% url 'accounts:user_detail' resp.demand.user.id %}">{{ resp.demand.user.display_name }}</a></td>
+                    <td>{{ resp.content|truncatechars:50 }}</td>
+                    <td><span class="tag status-{{ resp.status }}">{{ resp.get_status_display }}</span></td>
+                    <td>{{ resp.create_time|date:"m-d H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128172;</div>
+    <p>您还没有响应过需求</p>
+    <a href="{% url 'demands:list' %}" class="btn btn-primary mt-2">浏览需求</a>
+</div>
+{% endif %}
+{% endblock %}

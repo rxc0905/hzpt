@@ -1,0 +1,35 @@
+# Django
+__pycache__/
+*.py[cod]
+*.log
+*.pot
+local_settings.py
+db.sqlite3
+media/
+staticfiles/
+
+# Virtualenv
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Environment
+.env
+
+# Docs
+*.docx

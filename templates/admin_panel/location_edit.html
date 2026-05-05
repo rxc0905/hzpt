@@ -1,0 +1,25 @@
+{% extends 'admin_panel/base_admin.html' %}
+
+{% block title %}编辑位置 - 管理后台{% endblock %}
+
+{% block admin_content %}
+<div style="max-width:500px;">
+    <h2 style="margin-bottom:16px;">编辑位置：{{ location.name }}</h2>
+    <div class="card">
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="form-error">{{ field.errors.0 }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <div class="d-flex gap-1">
+                <button type="submit" class="btn btn-primary">保存修改</button>
+                <a href="{% url 'admin_panel:locations' %}" class="btn btn-outline">返回</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

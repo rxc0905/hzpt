@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="admin-layout">
+    <div class="admin-sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="{% url 'admin_panel:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">&#128202; 数据概览</a></li>
+            <li><a href="{% url 'admin_panel:users' %}" class="{% if 'user' in request.resolver_match.url_name %}active{% endif %}">&#128101; 用户管理</a></li>
+            <li><a href="{% url 'admin_panel:demands' %}" class="{% if request.resolver_match.url_name == 'demands' %}active{% endif %}">&#128203; 需求管理</a></li>
+            <li><a href="{% url 'admin_panel:locations' %}" class="{% if 'location' in request.resolver_match.url_name %}active{% endif %}">&#128205; 位置管理</a></li>
+            <li><a href="{% url 'admin_panel:notices' %}" class="{% if 'notice' in request.resolver_match.url_name %}active{% endif %}">&#128227; 公告管理</a></li>
+            <li><a href="{% url 'home' %}">&#127968; 返回前台</a></li>
+        </ul>
+    </div>
+    <div class="admin-content">
+        {% block admin_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

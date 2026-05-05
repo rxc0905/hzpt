@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}信誉积分 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:20px;">&#11088; 信誉积分中心</h2>
+
+<div class="grid" style="grid-template-columns: 320px 1fr;">
+    <!-- 左侧：积分概览 -->
+    <div>
+        <div class="card text-center">
+            <div style="font-size:60px;font-weight:800;margin:10px 0;{% if user.credit_score >= 80 %}color:var(--success){% elif user.credit_score >= 60 %}color:var(--warning){% else %}color:var(--danger){% endif %}">
+                {{ user.credit_score }}
+            </div>
+            <div style="font-size:16px;color:var(--gray);margin-bottom:16px;">当前信誉积分</div>
+            <div style="background:var(--light);border-radius:8px;padding:12px;text-align:left;font-size:14px;">
+                {% if user.credit_score >= 80 %}
+                    <span class="tag tag-success" style="font-size:14px;padding:4px 12px;">&#127775; 信誉优秀</span>
+                    <p class="mt-1 text-muted">您的信誉良好，享受平台全部功能</p>
+                {% elif user.credit_score >= 60 %}
+                    <span class="tag tag-warning" style="font-size:14px;padding:4px 12px;">&#9888; 信誉一般</span>
+                    <p class="mt-1 text-muted">请注意保持良好信誉</p>
+                {% else %}
+                    <span class="tag tag-danger" style="font-size:14px;padding:4px 12px;">&#9888; 信誉过低</span>
+                    <p class="mt-1 text-muted" style="color:var(--danger);">信誉分低于60分，已限制发布需求</p>
+                {% endif %}
+            </div>
+            <div class="grid grid-2 mt-2" style="gap:10px;">
+                <div style="background:#e8f5e9;border-radius:8px;padding:12px;">
+                    <div style="font-size:22px;font-weight:700;color:var(--success);">+{{ total_gain }}</div>
+                    <div style="font-size:12px;color:#666;">累计加分</div>
+                </div>
+                <div style="background:#fce4ec;border-radius:8px;padding:12px;">
+                    <div style="font-size:22px;font-weight:700;color:var(--danger);">{{ total_loss }}</div>
+                    <div style="font-size:12px;color:#666;">累计扣分</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 积分规则 -->
+        <div class="card">
+            <div class="card-header">&#128214; 积分规则</div>
+            <table style="font-size:13px;">
+                <thead>
+                    <tr><th>行为</th><th>积分变动</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>注册账号</td><td><span class="text-success">初始 100 分</span></td></tr>
+                    <tr><td>完成互助需求（发布者）</td><td><span class="text-success">+5 分</span></td></tr>
+                    <tr><td>完成互助需求（响应者）</td><td><span class="text-success">+5 分</span></td></tr>
+                    <tr><td>收到好评（4-5 分）</td><td><span class="text-success">+3 分</span></td></tr>
+                    <tr><td>收到中评（3 分）</td><td>不变</td></tr>
+                    <tr><td>收到差评（1-2 分）</td><td><span class="text-danger">-5 分</span></td></tr>
+                    <tr><td>管理员手动调整</td><td>视情况而定</td></tr>
+                </tbody>
+            </table>
+            <div style="margin-top:12px;padding:10px;background:#fff3cd;border-radius:6px;font-size:12px;color:#856404;">
+                &#9888; 信誉分低于 60 分将被限制发布需求，请保持良好信誉！
+            </div>
+        </div>
+    </div>
+
+    <!-- 右侧：积分变动记录 -->
+    <div>
+        <div class="card">
+            <div class="card-header">
+                &#128203; 积分变动记录
+                <span class="text-muted" style="font-size:13px;">共 {{ record_count }} 条记录</span>
+            </div>
+            {% if credit_records %}
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>变动</th>
+                            <th>原因</th>
+                            <th>相关需求</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in credit_records %}
+                        <tr>
+                            <td>{{ record.create_time|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                {% if record.change_score > 0 %}
+                                    <span style="background:#e8f5e9;color:#2e7d32;padding:2px 10px;border-radius:12px;font-weight:600;font-size:13px;">+{{ record.change_score }}</span>
+                                {% else %}
+                                    <span style="background:#fce4ec;color:#c62828;padding:2px 10px;border-radius:12px;font-weight:600;font-size:13px;">{{ record.change_score }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ record.reason }}</td>
+                            <td>
+                                {% if record.related_demand %}
+                                    <a href="{% url 'demands:detail' record.related_demand.id %}">{{ record.related_demand.title|truncatechars:20 }}</a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">&#128203;</div>
+                <p>暂无积分变动记录</p>
+                <p class="text-muted mt-1" style="font-size:13px;">完成互助需求后将获得积分奖励</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

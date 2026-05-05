@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ location.name }}的需求 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="d-flex align-center gap-2 mb-2">
+    <a href="{% url 'locations:map' %}" class="btn btn-outline btn-sm">&larr; 返回地图</a>
+    <h2>&#128205; {{ location.name }} <span class="text-muted" style="font-size:16px;">({{ location.get_campus_area_display }})</span></h2>
+</div>
+
+{% if location.description %}
+<p class="text-muted mb-2">{{ location.description }}</p>
+{% endif %}
+
+{% if demands %}
+<div class="grid grid-3">
+    {% for demand in demands %}
+    <div class="demand-card">
+        <div class="demand-card-header">
+            <span class="tag type-{{ demand.type }}">{{ demand.get_type_display }}</span>
+            {% if demand.is_urgent %}<span class="urgent-badge">紧急</span>{% endif %}
+        </div>
+        <div class="demand-card-title">
+            <a href="{% url 'demands:detail' demand.id %}">{{ demand.title }}</a>
+        </div>
+        <div class="demand-card-content">{{ demand.content|truncatechars:80 }}</div>
+        <div class="demand-card-meta">
+            <span>&#128100; {{ demand.user.display_name }}</span>
+            <span>&#128337; {{ demand.create_time|date:"m-d H:i" }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128269;</div>
+    <p>该位置暂无活跃需求</p>
+</div>
+{% endif %}
+{% endblock %}

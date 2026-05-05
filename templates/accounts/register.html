@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block title %}注册 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+    <div class="card" style="margin-top:40px;">
+        <div class="card-header" style="justify-content:center;border:none;">
+            <h2>用户注册</h2>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                {% if field.errors %}<div class="form-error">{{ field.errors.0 }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary btn-block btn-lg">注册</button>
+            </div>
+            <div class="text-center">
+                <span class="text-muted">已有账号？</span>
+                <a href="{% url 'accounts:login' %}">立即登录</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,327 @@
+========================================
+  校园互助服务平台 部署流程
+  (campus_mutual_aid 项目)
+========================================
+
+项目位置（本地）：c:\Users\RXC19\Desktop\campus_mutual_aid\
+目标服务器：CentOS（示例 IP：134.175.197.177）
+
+
+========================================
+一、上传项目文件到服务器
+========================================
+
+方法一：使用 scp 命令（在本地 cmd/PowerShell 中执行）
+----------------------------------------------
+  scp -r C:\Users\RXC19\Desktop\campus_mutual_aid root@134.175.197.177:/data/campus_mutual_aid
+
+方法二：使用 WinSCP / FileZilla 等工具
+----------------------------------------------
+  - 连接服务器（IP、端口22、用户root、密码）
+  - 将本地 campus_mutual_aid 整个文件夹拖到服务器 /data/ 目录下
+
+上传完成后，服务器上项目路径为：
+  /data/campus_mutual_aid/
+
+
+========================================
+二、服务器上创建虚拟环境
+========================================
+
+  # 创建虚拟环境
+  python3 -m venv /envs/campus_env
+
+  # 激活虚拟环境
+  source /envs/campus_env/bin/activate
+
+  # 安装依赖（本项目需要的包）
+  pip install django
+  pip install mysqlclient        # 如果用 MySQL
+  pip install uwsgi
+
+
+========================================
+三、修改 Django 配置
+========================================
+
+编辑文件：/data/campus_mutual_aid/campus_mutual_aid/settings.py
+
+需要修改以下内容：
+
+1. 关闭调试模式
+----------------------------------------------
+  DEBUG = False
+
+
+2. 允许的主机
+----------------------------------------------
+  ALLOWED_HOSTS = ['*']
+
+
+3. 数据库配置
+----------------------------------------------
+  项目默认使用 SQLite（无需额外安装），如果保持 SQLite 不用改。
+
+  如果要改用 MySQL：
+  DATABASES = {
+      'default': {
+          'ENGINE': 'django.db.backends.mysql',
+          'NAME': 'campus_mutual_aid',
+          'USER': 'root',
+          'PASSWORD': '你的MySQL密码',
+          'HOST': 'localhost',
+          'PORT': '3306',
+      }
+  }
+
+  用 MySQL 的话，先在 MySQL 中创建数据库：
+  mysql -u root -p
+  > CREATE DATABASE campus_mutual_aid DEFAULT CHARSET utf8mb4;
+  > EXIT;
+
+
+4. 静态文件配置（确认或添加）
+----------------------------------------------
+  STATIC_URL = '/static/'
+  STATIC_ROOT = '/data/campus_static'
+
+  # STATICFILES_DIRS 保持不变（指向项目内的 static 目录）
+
+
+========================================
+四、数据库迁移与初始化
+========================================
+
+  cd /data/campus_mutual_aid
+
+  # 数据库迁移
+  /envs/campus_env/bin/python manage.py makemigrations accounts demands locations notifications
+  /envs/campus_env/bin/python manage.py migrate
+
+  # 初始化数据（创建管理员、学生账号、校园地点、欢迎公告）
+  /envs/campus_env/bin/python manage.py init_data
+
+  # 收集静态文件到 /data/campus_static/
+  /envs/campus_env/bin/python manage.py collectstatic --noinput
+
+  # 设置权限
+  chmod -R 755 /data/campus_static/
+
+
+========================================
+五、创建 uwsgi.ini 配置文件
+========================================
+
+在项目根目录创建：/data/campus_mutual_aid/uwsgi.ini
+
+内容如下：
+
+  [uwsgi]
+  socket = 127.0.0.1:9001
+  chdir = /data/campus_mutual_aid
+  wsgi-file = campus_mutual_aid/wsgi.py
+  processes = 4
+  threads = 2
+  master = true
+  virtualenv = /envs/campus_env
+
+注意：
+  - 端口用 9001（因为之前的项目已经用了 9000）
+  - 如果服务器上只部署这一个项目，用 9000 也可以
+  - wsgi-file 指向 campus_mutual_aid/wsgi.py
+
+
+========================================
+六、配置 Nginx
+========================================
+
+编辑 /etc/nginx/nginx.conf
+
+如果服务器上只部署这一个项目：
+----------------------------------------------
+
+  user root;
+  worker_processes auto;
+  error_log /var/log/nginx/error.log;
+  pid /run/nginx.pid;
+
+  include /usr/share/nginx/modules/*.conf;
+
+  events {
+      worker_connections 1024;
+  }
+
+  http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+      access_log /var/log/nginx/access.log main;
+
+      upstream django {
+          server 127.0.0.1:9001;
+      }
+
+      server {
+          listen 80;
+          listen [::]:80;
+          server_name _;
+
+          location /static/ {
+              alias /data/campus_static/;
+          }
+
+          location / {
+              uwsgi_pass django;
+              include uwsgi_params;
+          }
+      }
+  }
+
+
+如果要和之前的联通项目同时部署（两个项目共存）：
+----------------------------------------------
+
+  user root;
+  worker_processes auto;
+  error_log /var/log/nginx/error.log;
+  pid /run/nginx.pid;
+
+  include /usr/share/nginx/modules/*.conf;
+
+  events {
+      worker_connections 1024;
+  }
+
+  http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+      access_log /var/log/nginx/access.log main;
+
+      # 联通项目（端口 9000）
+      upstream unicom_django {
+          server 127.0.0.1:9000;
+      }
+
+      # 校园互助项目（端口 9001）
+      upstream campus_django {
+          server 127.0.0.1:9001;
+      }
+
+      # 联通项目 - 监听 80 端口
+      server {
+          listen 80;
+          server_name _;
+
+          location /static/ {
+              alias /data/allstatic/;
+          }
+
+          location /media/ {
+              alias /data/five_class_demo_project/media/;
+          }
+
+          location / {
+              uwsgi_pass unicom_django;
+              include uwsgi_params;
+          }
+      }
+
+      # 校园互助项目 - 监听 8080 端口
+      server {
+          listen 8080;
+          server_name _;
+
+          location /static/ {
+              alias /data/campus_static/;
+          }
+
+          location / {
+              uwsgi_pass campus_django;
+              include uwsgi_params;
+          }
+      }
+  }
+
+  两个项目共存时：
+  - 联通项目访问：http://134.175.197.177/
+  - 校园互助项目访问：http://134.175.197.177:8080/
+
+  注意：需要在服务器防火墙/安全组中开放 8080 端口
+
+
+========================================
+七、启动服务
+========================================
+
+  # 1. 验证 Nginx 配置
+  nginx -t
+
+  # 2. 重启 Nginx
+  systemctl restart nginx
+
+  # 3. 启动 uWSGI（校园互助项目）
+  cd /data/campus_mutual_aid
+  /envs/campus_env/bin/uwsgi --ini uwsgi.ini &
+
+  # 4. 浏览器访问测试
+  #    单项目部署：http://134.175.197.177/
+  #    双项目共存：http://134.175.197.177:8080/
+
+  # 5. 默认账号
+  #    管理员：admin / admin123456
+  #    学生：  student1 / 123456
+  #              student2 / 123456
+  #              student3 / 123456
+
+
+========================================
+八、完整命令汇总（按顺序复制执行）
+========================================
+
+  # === 在本地执行：上传项目 ===
+  scp -r C:\Users\RXC19\Desktop\campus_mutual_aid root@134.175.197.177:/data/campus_mutual_aid
+
+
+  # === 以下在服务器上执行 ===
+
+  # 创建虚拟环境
+  python3 -m venv /envs/campus_env
+  source /envs/campus_env/bin/activate
+  pip install django mysqlclient uwsgi
+
+  # 数据库迁移与初始化
+  cd /data/campus_mutual_aid
+  /envs/campus_env/bin/python manage.py makemigrations accounts demands locations notifications
+  /envs/campus_env/bin/python manage.py migrate
+  /envs/campus_env/bin/python manage.py init_data
+
+  # 收集静态文件
+  /envs/campus_env/bin/python manage.py collectstatic --noinput
+  chmod -R 755 /data/campus_static/
+
+  # 创建 uwsgi.ini（如果还没创建的话）
+  # 内容见第五节
+
+  # 配置 Nginx（见第六节）
+  vi /etc/nginx/nginx.conf
+  nginx -t
+  systemctl restart nginx
+
+  # 启动 uWSGI
+  cd /data/campus_mutual_aid
+  /envs/campus_env/bin/uwsgi --ini uwsgi.ini &
+
+  # 测试访问
+  curl -I http://127.0.0.1:8080/
+
+
+========================================
+  文档结束
+========================================

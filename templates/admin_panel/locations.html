@@ -1,0 +1,60 @@
+{% extends 'admin_panel/base_admin.html' %}
+
+{% block title %}位置管理 - 管理后台{% endblock %}
+
+{% block admin_content %}
+<h2 style="margin-bottom:16px;">&#128205; 位置管理</h2>
+
+<div class="grid" style="grid-template-columns: 1fr 350px;">
+    <div class="card" style="padding:0;">
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>名称</th>
+                        <th>区域</th>
+                        <th>经度</th>
+                        <th>纬度</th>
+                        <th>需求数</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loc in locations %}
+                    <tr>
+                        <td>{{ loc.id }}</td>
+                        <td>{{ loc.name }}</td>
+                        <td><span class="tag tag-info">{{ loc.get_campus_area_display }}</span></td>
+                        <td>{{ loc.longitude }}</td>
+                        <td>{{ loc.latitude }}</td>
+                        <td>{{ loc.demand_count }}</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'admin_panel:location_edit' loc.id %}" class="btn btn-sm btn-outline">编辑</a>
+                                <a href="{% url 'admin_panel:location_delete' loc.id %}" class="btn btn-sm btn-danger" onclick="return confirmAction('确认删除该位置？')">删除</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">添加新位置</div>
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="form-error">{{ field.errors.0 }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary btn-block">添加位置</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

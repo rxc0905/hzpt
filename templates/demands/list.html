@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}需求大厅 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:16px;">&#128203; 需求大厅</h2>
+
+<!-- 筛选栏 -->
+<form class="filter-bar" method="get" action="{% url 'demands:list' %}">
+    <select name="type" class="form-control" style="width:auto;">
+        <option value="">全部类型</option>
+        {% for value, label in type_choices %}
+        <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <select name="area" class="form-control" style="width:auto;">
+        <option value="">全部区域</option>
+        {% for value, label in area_choices %}
+        <option value="{{ value }}" {% if current_area == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <select name="location" class="form-control" style="width:auto;">
+        <option value="">全部位置</option>
+        {% for loc in locations %}
+        <option value="{{ loc.id }}" {% if current_location == loc.id|stringformat:"d" %}selected{% endif %}>{{ loc.name }}</option>
+        {% endfor %}
+    </select>
+    <select name="sort" class="form-control" style="width:auto;">
+        <option value="-create_time" {% if current_sort == '-create_time' %}selected{% endif %}>最新发布</option>
+        <option value="urgent" {% if current_sort == 'urgent' %}selected{% endif %}>紧急优先</option>
+        <option value="credit" {% if current_sort == 'credit' %}selected{% endif %}>信誉最高</option>
+    </select>
+    <input type="text" name="keyword" value="{{ current_keyword }}" class="form-control" style="width:200px;" placeholder="搜索关键词...">
+    <button type="submit" class="btn btn-primary">筛选</button>
+    <a href="{% url 'demands:list' %}" class="btn btn-outline">重置</a>
+</form>
+
+<!-- 需求列表 -->
+{% if demands %}
+<div class="grid grid-3">
+    {% for demand in demands %}
+    <div class="demand-card">
+        <div class="demand-card-header">
+            <span class="tag type-{{ demand.type }}">{{ demand.get_type_display }}</span>
+            <div>
+                {% if demand.is_urgent %}<span class="urgent-badge">紧急</span>{% endif %}
+                <span class="tag status-{{ demand.status }}">{{ demand.get_status_display }}</span>
+            </div>
+        </div>
+        <div class="demand-card-title">
+            <a href="{% url 'demands:detail' demand.id %}">{{ demand.title }}</a>
+        </div>
+        <div class="demand-card-content">{{ demand.content|truncatechars:100 }}</div>
+        <div class="demand-card-meta">
+            <span>&#128100;
+                <a href="{% url 'accounts:user_detail' demand.user.id %}" style="color:inherit;">{{ demand.user.display_name }}</a>
+                <span style="color:{% if demand.user.credit_score >= 80 %}var(--success){% elif demand.user.credit_score >= 60 %}var(--warning){% else %}var(--danger){% endif %};font-weight:600;">{{ demand.user.credit_score }}分</span>
+            </span>
+            {% if demand.location %}
+            <span class="location-tag">&#128205; {{ demand.location.name }}</span>
+            {% endif %}
+            <span>&#128337; {{ demand.create_time|date:"m-d H:i" }}</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 分页 -->
+{% if demands.has_other_pages %}
+<div class="pagination">
+    {% if demands.has_previous %}
+    <a href="?page={{ demands.previous_page_number }}&type={{ current_type }}&area={{ current_area }}&location={{ current_location }}&keyword={{ current_keyword }}&sort={{ current_sort }}">上一页</a>
+    {% endif %}
+    {% for num in demands.paginator.page_range %}
+        {% if demands.number == num %}
+        <span class="current">{{ num }}</span>
+        {% elif num > demands.number|add:'-3' and num < demands.number|add:'3' %}
+        <a href="?page={{ num }}&type={{ current_type }}&area={{ current_area }}&location={{ current_location }}&keyword={{ current_keyword }}&sort={{ current_sort }}">{{ num }}</a>
+        {% endif %}
+    {% endfor %}
+    {% if demands.has_next %}
+    <a href="?page={{ demands.next_page_number }}&type={{ current_type }}&area={{ current_area }}&location={{ current_location }}&keyword={{ current_keyword }}&sort={{ current_sort }}">下一页</a>
+    {% endif %}
+</div>
+{% endif %}
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128269;</div>
+    <p>暂无符合条件的需求</p>
+    <a href="{% url 'demands:create' %}" class="btn btn-primary mt-2">发布需求</a>
+</div>
+{% endif %}
+{% endblock %}

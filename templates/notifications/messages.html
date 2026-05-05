@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}我的消息 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-between align-center mb-2">
+    <h2>&#128276; 我的消息</h2>
+    {% if messages_list %}
+    <a href="{% url 'notifications:mark_all_read' %}" class="btn btn-outline btn-sm">全部标为已读</a>
+    {% endif %}
+</div>
+
+{% if messages_list %}
+<div class="card" style="padding:0;">
+    {% for msg in messages_list %}
+    <div style="padding:14px 20px;border-bottom:1px solid #eee;display:flex;align-items:flex-start;gap:12px;{% if not msg.is_read %}background:#f0f4ff;{% endif %}">
+        <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+            {% if msg.type == 'response' %}background:#e3f2fd;color:#1565c0;{% elif msg.type == 'status' %}background:#e8f5e9;color:#2e7d32;{% elif msg.type == 'credit' %}background:#fff3e0;color:#e65100;{% else %}background:#f3e5f5;color:#7b1fa2;{% endif %}font-size:16px;">
+            {% if msg.type == 'response' %}&#128172;{% elif msg.type == 'status' %}&#128276;{% elif msg.type == 'credit' %}&#11088;{% else %}&#128227;{% endif %}
+        </div>
+        <div style="flex:1;">
+            <p style="font-size:14px;{% if not msg.is_read %}font-weight:600;{% endif %}">{{ msg.content }}</p>
+            <div class="d-flex align-center gap-1" style="margin-top:4px;">
+                <span class="text-muted" style="font-size:12px;">{{ msg.create_time|date:"Y-m-d H:i" }}</span>
+                <span class="tag" style="font-size:11px;{% if msg.type == 'response' %}background:#e3f2fd;color:#1565c0;{% elif msg.type == 'status' %}background:#e8f5e9;color:#2e7d32;{% elif msg.type == 'credit' %}background:#fff3e0;color:#e65100;{% else %}background:#f3e5f5;color:#7b1fa2;{% endif %}">{{ msg.get_type_display }}</span>
+            </div>
+        </div>
+        <div>
+            {% if msg.related_demand %}
+            <a href="{% url 'demands:detail' msg.related_demand.id %}" class="btn btn-sm btn-outline">查看</a>
+            {% endif %}
+            {% if not msg.is_read %}
+            <a href="{% url 'notifications:mark_read' msg.id %}" class="btn btn-sm btn-outline" style="margin-left:4px;">已读</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128276;</div>
+    <p>暂无消息</p>
+</div>
+{% endif %}
+{% endblock %}

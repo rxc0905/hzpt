@@ -1,0 +1,91 @@
+{% extends 'admin_panel/base_admin.html' %}
+
+{% block title %}管理后台 - 校园互助服务平台{% endblock %}
+
+{% block admin_content %}
+<h2 style="margin-bottom:20px;">&#128202; 数据概览</h2>
+
+<div class="grid grid-4 mb-3">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_users }}</div>
+        <div class="stat-label">注册用户</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ total_demands }}</div>
+        <div class="stat-label">总需求数</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" style="color:var(--warning);">{{ pending_demands }}</div>
+        <div class="stat-label">待审核</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" style="color:var(--success);">{{ completed_demands }}</div>
+        <div class="stat-label">已完成</div>
+    </div>
+</div>
+
+<div class="grid grid-2 mb-3">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_responses }}</div>
+        <div class="stat-label">总响应数</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ total_comments }}</div>
+        <div class="stat-label">总评价数</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <!-- 需求类型统计 -->
+    <div class="card">
+        <div class="card-header">需求类型分布</div>
+        {% for item in type_stats %}
+        <div class="d-flex justify-between align-center" style="padding:8px 0;border-bottom:1px solid #eee;">
+            <span class="tag type-{{ item.type }}">
+                {% if item.type == 'item_rental' %}物品租借{% elif item.type == 'study_help' %}学习互助{% elif item.type == 'task_help' %}事务求助{% elif item.type == 'part_time' %}兼职对接{% elif item.type == 'lost_found' %}失物招领{% endif %}
+            </span>
+            <strong>{{ item.count }}</strong>
+        </div>
+        {% empty %}
+        <p class="text-muted text-center" style="padding:20px;">暂无数据</p>
+        {% endfor %}
+    </div>
+
+    <!-- 位置热度统计 -->
+    <div class="card">
+        <div class="card-header">位置需求热度 TOP10</div>
+        {% for item in location_stats %}
+        <div class="d-flex justify-between align-center" style="padding:8px 0;border-bottom:1px solid #eee;">
+            <span class="location-tag">&#128205; {{ item.location__name }}</span>
+            <strong>{{ item.count }}</strong>
+        </div>
+        {% empty %}
+        <p class="text-muted text-center" style="padding:20px;">暂无数据</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 最近需求 -->
+<div class="card mt-2">
+    <div class="card-header">最近发布的需求</div>
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr><th>标题</th><th>发布者</th><th>类型</th><th>位置</th><th>状态</th><th>时间</th></tr>
+            </thead>
+            <tbody>
+                {% for demand in recent_demands %}
+                <tr>
+                    <td><a href="{% url 'demands:detail' demand.id %}">{{ demand.title }}</a></td>
+                    <td>{{ demand.user.display_name }}</td>
+                    <td><span class="tag type-{{ demand.type }}">{{ demand.get_type_display }}</span></td>
+                    <td>{% if demand.location %}{{ demand.location.name }}{% else %}-{% endif %}</td>
+                    <td><span class="tag status-{{ demand.status }}">{{ demand.get_status_display }}</span></td>
+                    <td>{{ demand.create_time|date:"m-d H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

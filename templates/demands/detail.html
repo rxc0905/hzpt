@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ demand.title }} - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="grid" style="grid-template-columns: 1fr 320px;">
+    <div>
+        <!-- 需求详情 -->
+        <div class="card">
+            <div class="d-flex justify-between align-center mb-2">
+                <div class="d-flex align-center gap-1">
+                    <span class="tag type-{{ demand.type }}">{{ demand.get_type_display }}</span>
+                    <span class="tag status-{{ demand.status }}">{{ demand.get_status_display }}</span>
+                    {% if demand.is_urgent %}<span class="urgent-badge">紧急</span>{% endif %}
+                </div>
+                {% if user == demand.user %}
+                <div class="d-flex gap-1">
+                    {% if demand.status == 'approved' or demand.status == 'pending' %}
+                    <a href="{% url 'demands:edit' demand.id %}" class="btn btn-sm btn-outline">编辑</a>
+                    <a href="{% url 'demands:cancel' demand.id %}" class="btn btn-sm btn-danger" onclick="return confirmAction('确认取消此需求？')">取消</a>
+                    {% endif %}
+                    {% if demand.status == 'responded' %}
+                    <a href="{% url 'demands:complete' demand.id %}" class="btn btn-sm btn-success" onclick="return confirmAction('确认标记为已完成？')">确认完成</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <h2 style="margin-bottom:12px;">{{ demand.title }}</h2>
+            <div style="font-size:15px;line-height:1.8;color:#444;white-space:pre-wrap;">{{ demand.content }}</div>
+            <div class="d-flex align-center gap-2 mt-2" style="font-size:13px;color:var(--gray);border-top:1px solid var(--border);padding-top:12px;">
+                <span>
+                    &#128100; <a href="{% url 'accounts:user_detail' demand.user.id %}">{{ demand.user.display_name }}</a>
+                    <span style="color:{% if demand.user.credit_score >= 80 %}var(--success){% elif demand.user.credit_score >= 60 %}var(--warning){% else %}var(--danger){% endif %};">({{ demand.user.credit_score }}分)</span>
+                </span>
+                {% if demand.location %}
+                <span class="location-tag">&#128205; {{ demand.location.name }}</span>
+                {% endif %}
+                <span>&#128337; {{ demand.create_time|date:"Y-m-d H:i" }}</span>
+                {% if demand.deadline %}<span>&#9200; 截止: {{ demand.deadline|date:"Y-m-d H:i" }}</span>{% endif %}
+                <span>&#128065; {{ demand.views_count }}</span>
+            </div>
+        </div>
+
+        <!-- 响应列表 -->
+        <div class="card">
+            <div class="card-header">响应列表 ({{ responses|length }})</div>
+            {% for resp in responses %}
+            <div class="response-item">
+                <div class="response-header">
+                    <div>
+                        <span class="response-user">
+                            <a href="{% url 'accounts:user_detail' resp.user.id %}">{{ resp.user.display_name }}</a>
+                        </span>
+                        <span class="text-muted" style="font-size:12px;margin-left:8px;">{{ resp.create_time|date:"m-d H:i" }}</span>
+                        <span style="margin-left:4px;color:{% if resp.user.credit_score >= 80 %}var(--success){% elif resp.user.credit_score >= 60 %}var(--warning){% else %}var(--danger){% endif %};font-size:12px;">信誉{{ resp.user.credit_score }}分</span>
+                    </div>
+                    <div class="d-flex align-center gap-1">
+                        <span class="tag status-{{ resp.status }}">{{ resp.get_status_display }}</span>
+                        {% if user == demand.user and resp.status == 'pending' %}
+                        <a href="{% url 'demands:response_accept' resp.id %}" class="btn btn-sm btn-success">接受</a>
+                        <a href="{% url 'demands:response_reject' resp.id %}" class="btn btn-sm btn-danger">拒绝</a>
+                        {% endif %}
+                    </div>
+                </div>
+                <p style="font-size:14px;color:#555;">{{ resp.content }}</p>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center" style="padding:20px;">暂无响应</p>
+            {% endfor %}
+
+            <!-- 响应表单 -->
+            {% if user.is_authenticated and user != demand.user and not user_responded and demand.status in 'approved,responded' %}
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                <h4 style="margin-bottom:12px;">我来响应</h4>
+                <form method="post" action="{% url 'demands:respond' demand.id %}">
+                    {% csrf_token %}
+                    {{ response_form.content }}
+                    <button type="submit" class="btn btn-primary mt-1">提交响应</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 评价列表 -->
+        <div class="card">
+            <div class="card-header">评价 ({{ comments|length }})</div>
+            {% for comment in comments %}
+            <div class="comment-item">
+                <div class="d-flex justify-between align-center mb-1">
+                    <span>
+                        <strong>{{ comment.from_user.display_name }}</strong>
+                        <span class="text-muted" style="font-size:12px;">&#8594; {{ comment.to_user.display_name }}</span>
+                    </span>
+                    <span class="stars">{% for i in "12345" %}{% if forloop.counter <= comment.score %}&#9733;{% else %}&#9734;{% endif %}{% endfor %} {{ comment.score }}分</span>
+                </div>
+                <p style="font-size:14px;color:#555;">{{ comment.content }}</p>
+                <span class="text-muted" style="font-size:12px;">{{ comment.create_time|date:"Y-m-d H:i" }}</span>
+            </div>
+            {% empty %}
+            <p class="text-muted text-center" style="padding:20px;">暂无评价</p>
+            {% endfor %}
+
+            <!-- 评价表单 -->
+            {% if user.is_authenticated and demand.status == 'completed' and not user_commented %}
+            {% if user == demand.user or user_response and user_response.status == 'completed' %}
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+                <h4 style="margin-bottom:12px;">发表评价</h4>
+                <form method="post" action="{% url 'demands:comment' demand.id %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label>评分</label>
+                        {{ comment_form.score }}
+                    </div>
+                    <div class="form-group">
+                        <label>评价内容</label>
+                        {{ comment_form.content }}
+                    </div>
+                    <button type="submit" class="btn btn-primary">提交评价</button>
+                </form>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 右侧栏 -->
+    <div>
+        <!-- 发布者信息 -->
+        <div class="card text-center">
+            {% if demand.user.avatar %}
+            <img src="{{ demand.user.avatar.url }}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;margin:0 auto 8px;">
+            {% else %}
+            <div style="width:60px;height:60px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 8px;">{{ demand.user.display_name|first }}</div>
+            {% endif %}
+            <h4><a href="{% url 'accounts:user_detail' demand.user.id %}">{{ demand.user.display_name }}</a></h4>
+            <div style="font-size:20px;font-weight:700;margin:8px 0;{% if demand.user.credit_score >= 80 %}color:var(--success){% elif demand.user.credit_score >= 60 %}color:var(--warning){% else %}color:var(--danger){% endif %}">{{ demand.user.credit_score }} <span style="font-size:12px;font-weight:400;">信誉分</span></div>
+        </div>
+
+        <!-- 位置信息 -->
+        {% if demand.location %}
+        <div class="card">
+            <div class="card-header" style="font-size:15px;">&#128205; 位置信息</div>
+            <p><strong>{{ demand.location.name }}</strong></p>
+            <p class="text-muted" style="font-size:13px;">{{ demand.location.get_campus_area_display }}</p>
+            {% if demand.location.description %}
+            <p class="text-muted" style="font-size:13px;">{{ demand.location.description }}</p>
+            {% endif %}
+            <a href="{% url 'locations:location_demands' demand.location.id %}" class="btn btn-sm btn-outline mt-1">查看该位置全部需求</a>
+            <a href="{% url 'locations:map' %}" class="btn btn-sm btn-outline mt-1">在地图中查看</a>
+        </div>
+        {% endif %}
+
+        <!-- 附近需求 -->
+        {% if nearby_demands %}
+        <div class="card">
+            <div class="card-header" style="font-size:15px;">&#127983; 附近需求</div>
+            {% for nd in nearby_demands %}
+            <div style="padding:8px 0;border-bottom:1px solid #eee;">
+                <a href="{% url 'demands:detail' nd.id %}" style="font-size:14px;">{{ nd.title }}</a>
+                <div style="font-size:12px;color:var(--gray);">{{ nd.get_type_display }} | {{ nd.create_time|date:"m-d" }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

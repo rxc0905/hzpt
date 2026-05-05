@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}系统公告 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:16px;">&#128227; 系统公告</h2>
+
+{% if notices %}
+{% for notice in notices %}
+<div class="card">
+    <h3 style="margin-bottom:8px;">
+        <a href="{% url 'notifications:notice_detail' notice.id %}">{{ notice.title }}</a>
+    </h3>
+    <div class="text-muted" style="font-size:13px;margin-bottom:8px;">
+        发布时间：{{ notice.create_time|date:"Y-m-d H:i" }}
+    </div>
+    <p style="font-size:14px;color:#555;">{{ notice.content|truncatechars:200 }}</p>
+    <a href="{% url 'notifications:notice_detail' notice.id %}" class="btn btn-sm btn-outline mt-1">阅读全文</a>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128227;</div>
+    <p>暂无公告</p>
+</div>
+{% endif %}
+{% endblock %}

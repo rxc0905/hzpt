@@ -1,0 +1,71 @@
+{% extends 'admin_panel/base_admin.html' %}
+
+{% block title %}需求管理 - 管理后台{% endblock %}
+
+{% block admin_content %}
+<h2 style="margin-bottom:16px;">&#128203; 需求管理</h2>
+
+<div class="filter-bar">
+    <form method="get" class="d-flex gap-1 align-center">
+        <select name="status" class="form-control" style="width:auto;">
+            <option value="">全部状态</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <select name="type" class="form-control" style="width:auto;">
+            <option value="">全部类型</option>
+            {% for value, label in type_choices %}
+            <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm">筛选</button>
+        <a href="{% url 'admin_panel:demands' %}" class="btn btn-outline btn-sm">重置</a>
+    </form>
+</div>
+
+<div class="card" style="padding:0;">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>标题</th>
+                    <th>发布者</th>
+                    <th>类型</th>
+                    <th>位置</th>
+                    <th>状态</th>
+                    <th>响应</th>
+                    <th>浏览</th>
+                    <th>时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for demand in demands %}
+                <tr>
+                    <td>{{ demand.id }}</td>
+                    <td><a href="{% url 'demands:detail' demand.id %}">{{ demand.title|truncatechars:20 }}</a></td>
+                    <td>{{ demand.user.display_name }}</td>
+                    <td><span class="tag type-{{ demand.type }}">{{ demand.get_type_display }}</span></td>
+                    <td>{% if demand.location %}{{ demand.location.name }}{% else %}-{% endif %}</td>
+                    <td><span class="tag status-{{ demand.status }}">{{ demand.get_status_display }}</span></td>
+                    <td>{{ demand.response_count }}</td>
+                    <td>{{ demand.views_count }}</td>
+                    <td>{{ demand.create_time|date:"m-d H:i" }}</td>
+                    <td>
+                        <div class="d-flex gap-1" style="flex-wrap:nowrap;">
+                            {% if demand.status == 'pending' %}
+                            <a href="{% url 'admin_panel:demand_approve' demand.id %}" class="btn btn-sm btn-success">通过</a>
+                            <a href="{% url 'admin_panel:demand_reject' demand.id %}" class="btn btn-sm btn-warning">驳回</a>
+                            {% endif %}
+                            <a href="{% url 'admin_panel:demand_delete' demand.id %}" class="btn btn-sm btn-danger" onclick="return confirmAction('确认删除该需求？')">删除</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

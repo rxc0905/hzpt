@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}登录 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+    <div class="card" style="margin-top:40px;">
+        <div class="card-header" style="justify-content:center;border:none;">
+            <h2>用户登录</h2>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label>用户名</label>
+                {{ form.username }}
+                {% if form.username.errors %}<div class="form-error">{{ form.username.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" class="form-control" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary btn-block btn-lg">登录</button>
+            </div>
+            <div class="text-center">
+                <span class="text-muted">还没有账号？</span>
+                <a href="{% url 'accounts:register' %}">立即注册</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ notice.title }} - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+    <a href="{% url 'notifications:notices' %}" class="btn btn-outline btn-sm mb-2">&larr; 返回公告列表</a>
+    <div class="card">
+        <h2 style="margin-bottom:8px;">{{ notice.title }}</h2>
+        <div class="text-muted" style="font-size:13px;margin-bottom:16px;">
+            发布时间：{{ notice.create_time|date:"Y-m-d H:i" }} | 发布者：{{ notice.admin.display_name }}
+        </div>
+        <div style="font-size:15px;line-height:1.8;color:#444;white-space:pre-wrap;">{{ notice.content }}</div>
+    </div>
+</div>
+{% endblock %}

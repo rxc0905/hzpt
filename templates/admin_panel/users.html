@@ -1,0 +1,77 @@
+{% extends 'admin_panel/base_admin.html' %}
+
+{% block title %}用户管理 - 管理后台{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-between align-center mb-2">
+    <h2>&#128101; 用户管理</h2>
+    <form method="get" class="d-flex gap-1">
+        <input type="text" name="keyword" value="{{ keyword }}" class="form-control" style="width:200px;" placeholder="搜索用户名/昵称/学号">
+        <button type="submit" class="btn btn-primary btn-sm">搜索</button>
+    </form>
+</div>
+
+<div class="card" style="padding:0;">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户名</th>
+                    <th>昵称</th>
+                    <th>学号</th>
+                    <th>角色</th>
+                    <th>信誉分</th>
+                    <th>状态</th>
+                    <th>注册时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>{{ u.username }}</td>
+                    <td>{{ u.nickname|default:"-" }}</td>
+                    <td>{{ u.student_id|default:"-" }}</td>
+                    <td>
+                        <span class="tag {% if u.role == 'admin' %}tag-primary{% else %}tag-info{% endif %}">{{ u.get_role_display }}</span>
+                    </td>
+                    <td>
+                        <span style="font-weight:600;{% if u.credit_score >= 80 %}color:var(--success){% elif u.credit_score >= 60 %}color:var(--warning){% else %}color:var(--danger){% endif %}">{{ u.credit_score }}</span>
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                        <span class="tag tag-success">正常</span>
+                        {% else %}
+                        <span class="tag tag-danger">禁用</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.date_joined|date:"Y-m-d" }}</td>
+                    <td>
+                        <div class="d-flex gap-1" style="flex-wrap:nowrap;">
+                            <a href="{% url 'admin_panel:user_toggle' u.id %}" class="btn btn-sm {% if u.is_active %}btn-warning{% else %}btn-success{% endif %}" onclick="return confirmAction('确认{% if u.is_active %}禁用{% else %}启用{% endif %}该用户？')">
+                                {% if u.is_active %}禁用{% else %}启用{% endif %}
+                            </a>
+                            {% if u.role == 'student' %}
+                            <a href="{% url 'admin_panel:user_set_role' u.id 'admin' %}" class="btn btn-sm btn-outline" onclick="return confirmAction('确认将该用户设为管理员？')">设为管理员</a>
+                            {% else %}
+                            <a href="{% url 'admin_panel:user_set_role' u.id 'student' %}" class="btn btn-sm btn-outline" onclick="return confirmAction('确认取消管理员？')">取消管理员</a>
+                            {% endif %}
+                            <!-- 调整信誉分 -->
+                            <button class="btn btn-sm btn-outline" onclick="document.getElementById('credit-form-{{ u.id }}').style.display = document.getElementById('credit-form-{{ u.id }}').style.display === 'none' ? 'flex' : 'none'">调分</button>
+                        </div>
+                        <form id="credit-form-{{ u.id }}" method="post" action="{% url 'admin_panel:user_adjust_credit' u.id %}" style="display:none;margin-top:8px;" class="d-flex gap-1 align-center">
+                            {% csrf_token %}
+                            <input type="number" name="change" class="form-control" style="width:80px;" placeholder="分值" required>
+                            <input type="text" name="reason" class="form-control" style="width:120px;" placeholder="原因" required>
+                            <button type="submit" class="btn btn-sm btn-primary">确认</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}首页 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>校园互助服务平台</h1>
+    <p>发布需求，互帮互助，让校园生活更美好</p>
+    {% if user.is_authenticated %}
+        <a href="{% url 'demands:create' %}" class="btn btn-lg" style="background:white;color:var(--primary);">发布需求</a>
+    {% else %}
+        <a href="{% url 'accounts:register' %}" class="btn btn-lg" style="background:white;color:var(--primary);">立即注册</a>
+    {% endif %}
+</div>
+
+<!-- 数据统计 -->
+<div class="grid grid-3 mb-3">
+    <div class="stat-card">
+        <div class="stat-number">{{ total_users }}</div>
+        <div class="stat-label">注册用户</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ total_demands }}</div>
+        <div class="stat-label">发布需求</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ total_completed }}</div>
+        <div class="stat-label">完成互助</div>
+    </div>
+</div>
+
+<!-- 公告 -->
+{% if notices %}
+<div class="card mb-3">
+    <div class="card-header">
+        系统公告
+        <a href="{% url 'notifications:notices' %}" class="btn btn-sm btn-outline">查看全部</a>
+    </div>
+    {% for notice in notices %}
+    <div style="padding:8px 0;border-bottom:1px solid #eee;">
+        <a href="{% url 'notifications:notice_detail' notice.id %}">{{ notice.title }}</a>
+        <span class="text-muted" style="font-size:12px;margin-left:8px;">{{ notice.create_time|date:"Y-m-d" }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 快速入口 -->
+<div class="card mb-3">
+    <div class="card-header">需求分类</div>
+    <div class="d-flex gap-2 flex-wrap">
+        {% for value, label in demand_types %}
+        <a href="{% url 'demands:list' %}?type={{ value }}" class="btn btn-outline" style="flex:1;min-width:120px;justify-content:center;">
+            {% if value == 'item_rental' %}&#128230;{% elif value == 'study_help' %}&#128218;{% elif value == 'task_help' %}&#129309;{% elif value == 'part_time' %}&#128188;{% elif value == 'lost_found' %}&#128269;{% endif %}
+            {{ label }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 最新需求 -->
+<div class="card">
+    <div class="card-header">
+        最新需求
+        <a href="{% url 'demands:list' %}" class="btn btn-sm btn-outline">查看全部</a>
+    </div>
+    {% if latest_demands %}
+    <div class="grid grid-2">
+        {% for demand in latest_demands %}
+        <div class="demand-card">
+            <div class="demand-card-header">
+                <span class="tag type-{{ demand.type }}">{{ demand.get_type_display }}</span>
+                {% if demand.is_urgent %}<span class="urgent-badge">紧急</span>{% endif %}
+            </div>
+            <div class="demand-card-title">
+                <a href="{% url 'demands:detail' demand.id %}">{{ demand.title }}</a>
+            </div>
+            <div class="demand-card-content">{{ demand.content|truncatechars:80 }}</div>
+            <div class="demand-card-meta">
+                <span>&#128100; {{ demand.user.display_name }}</span>
+                {% if demand.location %}
+                <span class="location-tag">&#128205; {{ demand.location.name }}</span>
+                {% endif %}
+                <span>&#128337; {{ demand.create_time|date:"m-d H:i" }}</span>
+                <span>&#128065; {{ demand.views_count }}</span>
+                <span>&#128172; {{ demand.response_count }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">&#128587;</div>
+        <p>暂无需求，快来发布第一条吧！</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

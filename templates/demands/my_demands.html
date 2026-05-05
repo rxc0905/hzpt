@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}我的需求 - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-between align-center mb-2">
+    <h2>&#128203; 我的需求</h2>
+    <a href="{% url 'demands:create' %}" class="btn btn-primary">发布新需求</a>
+</div>
+
+{% if demands %}
+<div class="card">
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>标题</th>
+                    <th>类型</th>
+                    <th>位置</th>
+                    <th>状态</th>
+                    <th>响应数</th>
+                    <th>发布时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for demand in demands %}
+                <tr>
+                    <td><a href="{% url 'demands:detail' demand.id %}">{{ demand.title }}</a></td>
+                    <td><span class="tag type-{{ demand.type }}">{{ demand.get_type_display }}</span></td>
+                    <td>{% if demand.location %}<span class="location-tag">{{ demand.location.name }}</span>{% else %}-{% endif %}</td>
+                    <td><span class="tag status-{{ demand.status }}">{{ demand.get_status_display }}</span></td>
+                    <td>{{ demand.response_count }}</td>
+                    <td>{{ demand.create_time|date:"m-d H:i" }}</td>
+                    <td>
+                        {% if demand.status == 'approved' or demand.status == 'pending' %}
+                        <a href="{% url 'demands:edit' demand.id %}" class="btn btn-sm btn-outline">编辑</a>
+                        {% endif %}
+                        {% if demand.status == 'responded' %}
+                        <a href="{% url 'demands:complete' demand.id %}" class="btn btn-sm btn-success" onclick="return confirmAction('确认完成？')">完成</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128203;</div>
+    <p>您还没有发布过需求</p>
+    <a href="{% url 'demands:create' %}" class="btn btn-primary mt-2">发布需求</a>
+</div>
+{% endif %}
+{% endblock %}

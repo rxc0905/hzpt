@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}校园地图 - 校园互助服务平台{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #campus-map { height: 500px; border-radius: 8px; margin-bottom: 20px; }
+    .map-sidebar { max-height: 500px; overflow-y: auto; }
+    .loc-item { padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; }
+    .loc-item:hover { background: var(--primary-light); }
+    .loc-item h4 { font-size: 14px; margin-bottom: 4px; }
+    .loc-item p { font-size: 12px; color: var(--gray); margin: 0; }
+    .loc-badge { background: var(--primary); color: white; border-radius: 10px; padding: 1px 8px; font-size: 11px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:16px;">&#128506; 校园地图</h2>
+
+<div class="grid" style="grid-template-columns: 1fr 300px;">
+    <div>
+        <div id="campus-map"></div>
+    </div>
+    <div class="card map-sidebar" style="padding:0;">
+        <div style="padding:14px 16px;border-bottom:2px solid var(--primary);font-weight:600;">
+            校园位置列表
+        </div>
+        {% for loc in locations %}
+        <div class="loc-item" onclick="flyToLocation({{ loc.latitude }}, {{ loc.longitude }}, '{{ loc.name }}')">
+            <div class="d-flex justify-between align-center">
+                <h4>{{ loc.name }}</h4>
+                {% with demand_count=loc.demands.count %}
+                {% if demand_count > 0 %}
+                <span class="loc-badge">{{ demand_count }}条需求</span>
+                {% endif %}
+                {% endwith %}
+            </div>
+            <p>{{ loc.get_campus_area_display }}{% if loc.description %} | {{ loc.description }}{% endif %}</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // 地图数据
+    var mapData = {{ map_data|safe }};
+
+    // 初始化地图 - 以校园中心为默认位置
+    var centerLat = 40.0, centerLng = 116.0;
+    if (mapData.length > 0) {
+        var sumLat = 0, sumLng = 0;
+        mapData.forEach(function(d) { sumLat += d.lat; sumLng += d.lng; });
+        centerLat = sumLat / mapData.length;
+        centerLng = sumLng / mapData.length;
+    }
+
+    var map = L.map('campus-map').setView([centerLat, centerLng], 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // 区域颜色
+    var areaColors = {
+        'dormitory': '#e63946', 'teaching': '#457b9d', 'canteen': '#e9c46a',
+        'library': '#2a9d8f', 'gymnasium': '#f4a261', 'supermarket': '#264653',
+        'playground': '#06d6a0', 'gate': '#118ab2', 'office': '#073b4c', 'other': '#6c757d'
+    };
+
+    // 添加标记
+    mapData.forEach(function(loc) {
+        var color = areaColors[loc.area_key] || '#4361ee';
+        var icon = L.divIcon({
+            className: '',
+            html: '<div style="background:' + color + ';color:white;padding:4px 10px;border-radius:16px;font-size:12px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.3);text-align:center;">' +
+                  loc.name + (loc.demand_count > 0 ? ' <b>(' + loc.demand_count + ')</b>' : '') + '</div>',
+            iconSize: null,
+            iconAnchor: [40, 16],
+        });
+
+        var marker = L.marker([loc.lat, loc.lng], {icon: icon}).addTo(map);
+        marker.bindPopup(
+            '<div style="min-width:180px;">' +
+            '<h4 style="margin:0 0 8px;">' + loc.name + '</h4>' +
+            '<p style="margin:0;color:#666;font-size:13px;">' + loc.area + '</p>' +
+            (loc.description ? '<p style="margin:4px 0;font-size:13px;">' + loc.description + '</p>' : '') +
+            '<p style="margin:8px 0 4px;font-weight:600;">活跃需求: ' + loc.demand_count + ' 条</p>' +
+            '<a href="/locations/' + loc.id + '/demands/" style="color:#4361ee;font-size:13px;">查看该位置需求 &rarr;</a>' +
+            '</div>'
+        );
+    });
+
+    function flyToLocation(lat, lng, name) {
+        map.flyTo([lat, lng], 18);
+    }
+</script>
+{% endblock %}

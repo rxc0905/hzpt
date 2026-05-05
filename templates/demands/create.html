@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if edit_mode %}编辑需求{% else %}发布需求{% endif %} - 校园互助服务平台{% endblock %}
+
+{% block content %}
+<div class="container-sm">
+    <div class="card">
+        <div class="card-header">{% if edit_mode %}编辑需求{% else %}发布新需求{% endif %}</div>
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                {% if field.name == 'is_urgent' %}
+                <div class="form-check">
+                    {{ field }}
+                    <label>{{ field.label }}</label>
+                </div>
+                {% else %}
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% endif %}
+                {% if field.errors %}<div class="form-error">{{ field.errors.0 }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <div class="d-flex gap-1">
+                <button type="submit" class="btn btn-primary btn-lg">{% if edit_mode %}保存修改{% else %}发布需求{% endif %}</button>
+                <a href="{% url 'demands:list' %}" class="btn btn-outline btn-lg">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
