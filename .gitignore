@@ -43,5 +43,4 @@ build/
 # Environment
 .env
 
-# Docs (keep code docs, exclude generated)
-*.docx
+# Docs (keep code docs)
