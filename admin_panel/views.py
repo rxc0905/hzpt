@@ -1,13 +1,20 @@
+import logging
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db.models import Count, Avg, Sum, Q
+from django.db.models import Count, Avg, Sum, Q, F
+from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
 from functools import wraps
+
 from accounts.models import User
-from demands.models import Demand, DemandResponse, Comment, CreditRecord
+from demands.models import Demand, DemandResponse, Comment, CreditRecord, AdminLog
 from locations.models import Location
 from locations.forms import LocationForm
 from notifications.models import Notice, Message
+
+logger = logging.getLogger('admin_panel')
 
 
 def admin_required(view_func):
@@ -22,36 +29,49 @@ def admin_required(view_func):
     return wrapper
 
 
+def _log_admin_action(admin, action, target_type='', target_id=None, detail=''):
+    """记录管理员操作日志"""
+    AdminLog.objects.create(
+        admin=admin, action=action, target_type=target_type,
+        target_id=target_id, detail=detail,
+    )
+    logger.info(f'Admin action: {admin.username} {action} {target_type}#{target_id} {detail}')
+
+
 @admin_required
 def dashboard(request):
     """管理后台首页"""
-    total_users = User.objects.count()
-    total_demands = Demand.objects.count()
-    pending_demands = Demand.objects.filter(status='pending').count()
-    completed_demands = Demand.objects.filter(status='completed').count()
-    total_responses = DemandResponse.objects.count()
-    total_comments = Comment.objects.count()
+    from django.core.cache import cache
 
-    # 需求类型统计
-    type_stats = Demand.objects.values('type').annotate(count=Count('id')).order_by('-count')
-    # 位置统计
-    location_stats = Demand.objects.filter(location__isnull=False).values(
-        'location__name'
-    ).annotate(count=Count('id')).order_by('-count')[:10]
-    # 最近需求
-    recent_demands = Demand.objects.select_related('user', 'location').order_by('-create_time')[:10]
+    context = cache.get('admin_dashboard')
+    if context is None:
+        total_users = User.objects.count()
+        total_demands = Demand.objects.count()
+        pending_demands = Demand.objects.filter(status='pending').count()
+        completed_demands = Demand.objects.filter(status='completed').count()
+        total_responses = DemandResponse.objects.count()
+        total_comments = Comment.objects.count()
 
-    return render(request, 'admin_panel/dashboard.html', {
-        'total_users': total_users,
-        'total_demands': total_demands,
-        'pending_demands': pending_demands,
-        'completed_demands': completed_demands,
-        'total_responses': total_responses,
-        'total_comments': total_comments,
-        'type_stats': type_stats,
-        'location_stats': location_stats,
-        'recent_demands': recent_demands,
-    })
+        type_stats = list(Demand.objects.values('type').annotate(count=Count('id')).order_by('-count'))
+        location_stats = list(Demand.objects.filter(location__isnull=False).values(
+            'location__name'
+        ).annotate(count=Count('id')).order_by('-count')[:10])
+        recent_demands = list(Demand.objects.select_related('user', 'location').order_by('-create_time')[:10])
+
+        context = {
+            'total_users': total_users,
+            'total_demands': total_demands,
+            'pending_demands': pending_demands,
+            'completed_demands': completed_demands,
+            'total_responses': total_responses,
+            'total_comments': total_comments,
+            'type_stats': type_stats,
+            'location_stats': location_stats,
+            'recent_demands': recent_demands,
+        }
+        cache.set('admin_dashboard', context, 300)
+
+    return render(request, 'admin_panel/dashboard.html', context)
 
 
 @admin_required
@@ -63,10 +83,14 @@ def user_manage(request):
         users = users.filter(
             Q(username__icontains=keyword) | Q(nickname__icontains=keyword) | Q(student_id__icontains=keyword)
         )
-    return render(request, 'admin_panel/users.html', {'users': users, 'keyword': keyword})
+    paginator = Paginator(users, 20)
+    page = request.GET.get('page', 1)
+    users_page = paginator.get_page(page)
+    return render(request, 'admin_panel/users.html', {'users': users_page, 'keyword': keyword})
 
 
 @admin_required
+@require_POST
 def user_toggle_active(request, user_id):
     """启用/禁用用户"""
     user = get_object_or_404(User, pk=user_id)
@@ -76,38 +100,55 @@ def user_toggle_active(request, user_id):
     user.is_active = not user.is_active
     user.save()
     action = '启用' if user.is_active else '禁用'
+    _log_admin_action(request.user, 'user_toggle_active', 'user', user.pk, f'{action} {user.username}')
     messages.success(request, f'用户 {user.username} 已{action}')
     return redirect('admin_panel:users')
 
 
 @admin_required
+@require_POST
 def user_set_role(request, user_id, role):
     """设置用户角色"""
     user = get_object_or_404(User, pk=user_id)
-    if role in ('student', 'admin'):
-        user.role = role
-        user.save()
-        messages.success(request, f'用户 {user.username} 角色已设为 {user.get_role_display()}')
+    if role not in ('student', 'admin'):
+        messages.error(request, '无效的角色')
+        return redirect('admin_panel:users')
+    if role != 'admin' and user.role == 'admin':
+        if not User.objects.filter(role='admin').exclude(pk=user.pk).exists():
+            messages.error(request, '不能移除最后一个管理员')
+            return redirect('admin_panel:users')
+    old_role = user.role
+    user.role = role
+    user.save()
+    _log_admin_action(request.user, 'user_set_role', 'user', user.pk, f'{old_role} -> {role}')
+    messages.success(request, f'用户 {user.username} 角色已设为 {user.get_role_display()}')
     return redirect('admin_panel:users')
 
 
 @admin_required
+@require_POST
 def user_adjust_credit(request, user_id):
     """调整用户信誉分"""
     user = get_object_or_404(User, pk=user_id)
-    if request.method == 'POST':
+    try:
         change = int(request.POST.get('change', 0))
-        reason = request.POST.get('reason', '管理员调整')
-        if change != 0:
-            user.credit_score += change
-            user.save()
-            CreditRecord.objects.create(user=user, change_score=change, reason=reason)
-            Message.objects.create(
-                user=user,
-                content=f'管理员调整了您的信誉积分：{change:+d}，原因：{reason}',
-                type='credit',
-            )
-            messages.success(request, f'用户 {user.username} 信誉积分已调整 {change:+d}')
+    except (ValueError, TypeError):
+        messages.error(request, '无效的分数值')
+        return redirect('admin_panel:users')
+    reason = request.POST.get('reason', '') or '管理员调整'
+    if change != 0:
+        if abs(change) > 100:
+            messages.error(request, '单次调整不能超过100分')
+            return redirect('admin_panel:users')
+        User.objects.filter(pk=user.pk).update(credit_score=F('credit_score') + change)
+        CreditRecord.objects.create(user=user, change_score=change, reason=reason)
+        Message.objects.create(
+            user=user,
+            content=f'管理员调整了您的信誉积分：{change:+d}，原因：{reason}',
+            type='credit',
+        )
+        _log_admin_action(request.user, 'user_adjust_credit', 'user', user.pk, f'{change:+d} {reason}')
+        messages.success(request, f'用户 {user.username} 信誉积分已调整 {change:+d}')
     return redirect('admin_panel:users')
 
 
@@ -122,8 +163,11 @@ def demand_manage(request):
     if demand_type:
         demands = demands.filter(type=demand_type)
     demands = demands.order_by('-create_time')
+    paginator = Paginator(demands, 20)
+    page = request.GET.get('page', 1)
+    demands_page = paginator.get_page(page)
     return render(request, 'admin_panel/demands.html', {
-        'demands': demands,
+        'demands': demands_page,
         'current_status': status,
         'current_type': demand_type,
         'status_choices': Demand.STATUS_CHOICES,
@@ -132,6 +176,7 @@ def demand_manage(request):
 
 
 @admin_required
+@require_POST
 def demand_approve(request, demand_id):
     """审核通过需求"""
     demand = get_object_or_404(Demand, pk=demand_id)
@@ -141,11 +186,13 @@ def demand_approve(request, demand_id):
         user=demand.user, content=f'您的需求「{demand.title}」已通过审核',
         type='status', related_demand=demand,
     )
+    _log_admin_action(request.user, 'demand_approve', 'demand', demand.pk, demand.title)
     messages.success(request, '需求已审核通过')
     return redirect('admin_panel:demands')
 
 
 @admin_required
+@require_POST
 def demand_reject(request, demand_id):
     """驳回需求"""
     demand = get_object_or_404(Demand, pk=demand_id)
@@ -155,15 +202,19 @@ def demand_reject(request, demand_id):
         user=demand.user, content=f'您的需求「{demand.title}」已被驳回',
         type='status', related_demand=demand,
     )
+    _log_admin_action(request.user, 'demand_reject', 'demand', demand.pk, demand.title)
     messages.success(request, '需求已驳回')
     return redirect('admin_panel:demands')
 
 
 @admin_required
+@require_POST
 def demand_delete(request, demand_id):
     """删除需求"""
     demand = get_object_or_404(Demand, pk=demand_id)
+    title = demand.title
     demand.delete()
+    _log_admin_action(request.user, 'demand_delete', 'demand', demand_id, title)
     messages.success(request, '需求已删除')
     return redirect('admin_panel:demands')
 
@@ -175,7 +226,8 @@ def location_manage(request):
     if request.method == 'POST':
         form = LocationForm(request.POST)
         if form.is_valid():
-            form.save()
+            loc = form.save()
+            _log_admin_action(request.user, 'location_add', 'location', loc.pk, loc.name)
             messages.success(request, '位置添加成功')
             return redirect('admin_panel:locations')
     else:
@@ -191,6 +243,7 @@ def location_edit(request, location_id):
         form = LocationForm(request.POST, instance=location)
         if form.is_valid():
             form.save()
+            _log_admin_action(request.user, 'location_edit', 'location', location.pk, location.name)
             messages.success(request, '位置信息已更新')
             return redirect('admin_panel:locations')
     else:
@@ -199,10 +252,13 @@ def location_edit(request, location_id):
 
 
 @admin_required
+@require_POST
 def location_delete(request, location_id):
     """删除位置"""
     location = get_object_or_404(Location, pk=location_id)
+    name = location.name
     location.delete()
+    _log_admin_action(request.user, 'location_delete', 'location', location_id, name)
     messages.success(request, '位置已删除')
     return redirect('admin_panel:locations')
 
@@ -215,26 +271,32 @@ def notice_manage(request):
         title = request.POST.get('title', '')
         content = request.POST.get('content', '')
         if title and content:
-            Notice.objects.create(title=title, content=content, admin=request.user)
+            notice = Notice.objects.create(title=title, content=content, admin=request.user)
+            _log_admin_action(request.user, 'notice_create', 'notice', notice.pk, title)
             messages.success(request, '公告发布成功')
             return redirect('admin_panel:notices')
     return render(request, 'admin_panel/notices.html', {'notices': notices})
 
 
 @admin_required
+@require_POST
 def notice_toggle(request, notice_id):
     """切换公告显示状态"""
     notice = get_object_or_404(Notice, pk=notice_id)
     notice.is_active = not notice.is_active
     notice.save()
+    _log_admin_action(request.user, 'notice_toggle', 'notice', notice.pk, f'is_active={notice.is_active}')
     messages.success(request, '公告状态已更新')
     return redirect('admin_panel:notices')
 
 
 @admin_required
+@require_POST
 def notice_delete(request, notice_id):
     """删除公告"""
     notice = get_object_or_404(Notice, pk=notice_id)
+    title = notice.title
     notice.delete()
+    _log_admin_action(request.user, 'notice_delete', 'notice', notice_id, title)
     messages.success(request, '公告已删除')
     return redirect('admin_panel:notices')

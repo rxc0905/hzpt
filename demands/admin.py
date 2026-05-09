@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Demand, DemandResponse, Comment, CreditRecord
+from .models import Demand, DemandResponse, Comment, CreditRecord, AdminLog
 
 
 @admin.register(Demand)
@@ -23,3 +23,10 @@ class CommentAdmin(admin.ModelAdmin):
 @admin.register(CreditRecord)
 class CreditRecordAdmin(admin.ModelAdmin):
     list_display = ['user', 'change_score', 'reason', 'create_time']
+
+
+@admin.register(AdminLog)
+class AdminLogAdmin(admin.ModelAdmin):
+    list_display = ['admin', 'action', 'target_type', 'target_id', 'create_time']
+    list_filter = ['action', 'target_type']
+    search_fields = ['admin__username', 'detail']

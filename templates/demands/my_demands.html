@@ -37,7 +37,10 @@
                         <a href="{% url 'demands:edit' demand.id %}" class="btn btn-sm btn-outline">编辑</a>
                         {% endif %}
                         {% if demand.status == 'responded' %}
-                        <a href="{% url 'demands:complete' demand.id %}" class="btn btn-sm btn-success" onclick="return confirmAction('确认完成？')">完成</a>
+                        <form method="post" action="{% url 'demands:complete' demand.id %}" style="display:inline" onsubmit="return confirmAction('确认完成？')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-success">完成</button>
+                        </form>
                         {% endif %}
                     </td>
                 </tr>

@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import FileExtensionValidator
 
 
 class User(AbstractUser):
@@ -9,7 +10,10 @@ class User(AbstractUser):
         ('admin', '管理员'),
     )
     nickname = models.CharField('昵称', max_length=50, blank=True, default='')
-    avatar = models.ImageField('头像', upload_to='avatars/', blank=True, default='')
+    avatar = models.ImageField(
+        '头像', upload_to='avatars/', blank=True, default='',
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'gif', 'webp'])],
+    )
     student_id = models.CharField('学号', max_length=20, blank=True, default='')
     role = models.CharField('角色', max_length=10, choices=ROLE_CHOICES, default='student')
     credit_score = models.IntegerField('信誉积分', default=100)

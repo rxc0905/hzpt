@@ -1,7 +1,9 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db.models import Sum
+from django.utils.http import url_has_allowed_host_and_scheme
 from .forms import RegisterForm, LoginForm, ProfileForm, ChangePasswordForm
 from .models import User
 from demands.models import CreditRecord
@@ -21,6 +23,8 @@ def user_login(request):
                     login(request, user)
                     messages.success(request, '登录成功！')
                     next_url = request.GET.get('next', '/')
+                    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts=None):
+                        next_url = '/'
                     return redirect(next_url)
                 else:
                     messages.error(request, '账户已被禁用')
@@ -65,7 +69,7 @@ def profile(request):
     comments_count = user.comments_received.count()
     avg_score = 0
     if comments_count > 0:
-        total = sum(c.score for c in user.comments_received.all())
+        total = user.comments_received.aggregate(s=Sum('score'))['s'] or 0
         avg_score = round(total / comments_count, 1)
     return render(request, 'accounts/profile.html', {
         'profile_user': user,
@@ -93,19 +97,15 @@ def edit_profile(request):
 @login_required
 def change_password(request):
     if request.method == 'POST':
-        form = ChangePasswordForm(request.POST)
+        form = ChangePasswordForm(request.user, request.POST)
         if form.is_valid():
-            old_password = form.cleaned_data['old_password']
             new_password = form.cleaned_data['new_password1']
-            if request.user.check_password(old_password):
-                request.user.set_password(new_password)
-                request.user.save()
-                messages.success(request, '密码修改成功，请重新登录')
-                return redirect('accounts:login')
-            else:
-                messages.error(request, '旧密码不正确')
+            request.user.set_password(new_password)
+            request.user.save()
+            messages.success(request, '密码修改成功，请重新登录')
+            return redirect('accounts:login')
     else:
-        form = ChangePasswordForm()
+        form = ChangePasswordForm(request.user)
     return render(request, 'accounts/change_password.html', {'form': form})
 
 
@@ -114,8 +114,6 @@ def credit_center(request):
     """信誉积分中心"""
     user = request.user
     credit_records = CreditRecord.objects.filter(user=user)
-    # 统计
-    from django.db.models import Sum
     total_gain = credit_records.filter(change_score__gt=0).aggregate(s=Sum('change_score'))['s'] or 0
     total_loss = credit_records.filter(change_score__lt=0).aggregate(s=Sum('change_score'))['s'] or 0
     record_count = credit_records.count()
@@ -129,13 +127,13 @@ def credit_center(request):
 
 def user_detail(request, user_id):
     """查看其他用户的公开资料"""
-    target_user = User.objects.get(pk=user_id)
+    target_user = get_object_or_404(User, pk=user_id)
     comments = target_user.comments_received.all()[:10]
     demands = target_user.demands.filter(status__in=['approved', 'responded', 'completed'])[:10]
     avg_score = 0
     comments_count = target_user.comments_received.count()
     if comments_count > 0:
-        total = sum(c.score for c in target_user.comments_received.all())
+        total = target_user.comments_received.aggregate(s=Sum('score'))['s'] or 0
         avg_score = round(total / comments_count, 1)
     return render(request, 'accounts/user_detail.html', {
         'profile_user': target_user,

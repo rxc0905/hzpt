@@ -8,6 +8,18 @@ db.sqlite3
 media/
 staticfiles/
 
+# Certificates
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Database backups
+*.sql
+*.dump
+*.backup
+
 # Virtualenv
 venv/
 env/
@@ -31,5 +43,5 @@ build/
 # Environment
 .env
 
-# Docs
+# Docs (keep code docs, exclude generated)
 *.docx

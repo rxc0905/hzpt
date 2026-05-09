@@ -1,15 +1,7 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Notice, Message
-
-
-def unread_message_count(request):
-    """上下文处理器：未读消息数"""
-    if request.user.is_authenticated:
-        count = Message.objects.filter(user=request.user, is_read=False).count()
-        return {'unread_count': count}
-    return {'unread_count': 0}
 
 
 @login_required
@@ -45,5 +37,5 @@ def notice_list(request):
 
 def notice_detail(request, notice_id):
     """公告详情"""
-    notice = Notice.objects.get(pk=notice_id)
+    notice = get_object_or_404(Notice, pk=notice_id)
     return render(request, 'notifications/notice_detail.html', {'notice': notice})

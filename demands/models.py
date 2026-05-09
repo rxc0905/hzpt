@@ -1,6 +1,13 @@
 from django.db import models
 from django.conf import settings
 
+# 信誉积分常量
+CREDIT_COMPLETE_BONUS = 5
+CREDIT_GOOD_RATING = 3
+CREDIT_BAD_RATING = -5
+CREDIT_INITIAL = 100
+CREDIT_PUBLISH_THRESHOLD = 60
+
 
 class Demand(models.Model):
     """互助需求"""
@@ -62,6 +69,7 @@ class DemandResponse(models.Model):
         verbose_name = '需求响应'
         verbose_name_plural = verbose_name
         ordering = ['-create_time']
+        unique_together = [('demand', 'user')]
 
     def __str__(self):
         return f"{self.user} 响应 {self.demand.title}"
@@ -99,6 +107,7 @@ class CreditRecord(models.Model):
     change_score = models.IntegerField('变化分数')
     reason = models.CharField('原因', max_length=200)
     related_demand = models.ForeignKey(Demand, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='相关需求')
+    related_response = models.ForeignKey(DemandResponse, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='相关响应')
     create_time = models.DateTimeField('创建时间', auto_now_add=True)
 
     class Meta:
@@ -109,3 +118,22 @@ class CreditRecord(models.Model):
 
     def __str__(self):
         return f"{self.user}: {self.change_score:+d} ({self.reason})"
+
+
+class AdminLog(models.Model):
+    """管理员操作审计日志"""
+    admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='admin_logs', verbose_name='管理员')
+    action = models.CharField('操作类型', max_length=50)
+    target_type = models.CharField('目标类型', max_length=50, blank=True)
+    target_id = models.IntegerField('目标ID', null=True, blank=True)
+    detail = models.TextField('详情', blank=True, default='')
+    create_time = models.DateTimeField('操作时间', auto_now_add=True)
+
+    class Meta:
+        db_table = 'admin_log'
+        verbose_name = '管理员操作日志'
+        verbose_name_plural = verbose_name
+        ordering = ['-create_time']
+
+    def __str__(self):
+        return f"{self.admin} {self.action} ({self.create_time})"

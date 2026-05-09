@@ -1,19 +1,20 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
+from django.db.models import Count, Q
 from .models import Location
 from demands.models import Demand
 
 
 def campus_map(request):
     """校园地图页面"""
-    locations = Location.objects.all()
-    # 构造地图数据
-    map_data = []
-    for loc in locations:
-        demand_count = Demand.objects.filter(
-            location=loc, status__in=['approved', 'responded']
-        ).count()
-        map_data.append({
+    from django.core.cache import cache
+
+    context = cache.get('campus_map')
+    if context is None:
+        locations = Location.objects.annotate(
+            demand_count=Count('demands', filter=Q(demands__status__in=['approved', 'responded']))
+        )
+        map_data = [{
             'id': loc.id,
             'name': loc.name,
             'area': loc.get_campus_area_display(),
@@ -21,31 +22,34 @@ def campus_map(request):
             'lng': loc.longitude,
             'lat': loc.latitude,
             'description': loc.description,
-            'demand_count': demand_count,
-        })
-    return render(request, 'locations/map.html', {
-        'locations': locations,
-        'map_data': map_data,
-    })
+            'demand_count': loc.demand_count,
+        } for loc in locations]
+        context = {'locations': locations, 'map_data': map_data}
+        cache.set('campus_map', context, 600)
+
+    return render(request, 'locations/map.html', context)
 
 
 def location_api(request):
     """位置数据API（供前端AJAX调用）"""
-    locations = Location.objects.all()
-    data = []
-    for loc in locations:
-        demand_count = Demand.objects.filter(
-            location=loc, status__in=['approved', 'responded']
-        ).count()
-        data.append({
+    from django.core.cache import cache
+
+    data = cache.get('location_api')
+    if data is None:
+        locations = Location.objects.annotate(
+            demand_count=Count('demands', filter=Q(demands__status__in=['approved', 'responded']))
+        )
+        data = [{
             'id': loc.id,
             'name': loc.name,
             'area': loc.get_campus_area_display(),
             'area_key': loc.campus_area,
             'lng': loc.longitude,
             'lat': loc.latitude,
-            'demand_count': demand_count,
-        })
+            'demand_count': loc.demand_count,
+        } for loc in locations]
+        cache.set('location_api', data, 600)
+
     return JsonResponse(data, safe=False)
 
 

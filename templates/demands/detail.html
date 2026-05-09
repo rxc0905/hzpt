@@ -17,10 +17,16 @@
                 <div class="d-flex gap-1">
                     {% if demand.status == 'approved' or demand.status == 'pending' %}
                     <a href="{% url 'demands:edit' demand.id %}" class="btn btn-sm btn-outline">编辑</a>
-                    <a href="{% url 'demands:cancel' demand.id %}" class="btn btn-sm btn-danger" onclick="return confirmAction('确认取消此需求？')">取消</a>
+                    <form method="post" action="{% url 'demands:cancel' demand.id %}" style="display:inline" onsubmit="return confirmAction('确认取消此需求？')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger">取消</button>
+                    </form>
                     {% endif %}
                     {% if demand.status == 'responded' %}
-                    <a href="{% url 'demands:complete' demand.id %}" class="btn btn-sm btn-success" onclick="return confirmAction('确认标记为已完成？')">确认完成</a>
+                    <form method="post" action="{% url 'demands:complete' demand.id %}" style="display:inline" onsubmit="return confirmAction('确认标记为已完成？')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-success">确认完成</button>
+                    </form>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -57,8 +63,14 @@
                     <div class="d-flex align-center gap-1">
                         <span class="tag status-{{ resp.status }}">{{ resp.get_status_display }}</span>
                         {% if user == demand.user and resp.status == 'pending' %}
-                        <a href="{% url 'demands:response_accept' resp.id %}" class="btn btn-sm btn-success">接受</a>
-                        <a href="{% url 'demands:response_reject' resp.id %}" class="btn btn-sm btn-danger">拒绝</a>
+                        <form method="post" action="{% url 'demands:response_accept' resp.id %}" style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-success">接受</button>
+                        </form>
+                        <form method="post" action="{% url 'demands:response_reject' resp.id %}" style="display:inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">拒绝</button>
+                        </form>
                         {% endif %}
                     </div>
                 </div>
